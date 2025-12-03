@@ -1,24 +1,41 @@
 import React, { useState, useEffect, useCallback } from 'react';
 
+// URL API для запросов к серверу
 const API_URL = 'http://localhost:8080/api';
 
+// Главный компонент поиска по городам и отелям
 export default function HotelSearch() {
+  // -------------------
+  // Состояния компонента
+  // -------------------
+
+  // Список городов
   const [cities, setCities] = useState([]);
+  // Список отелей
   const [hotels, setHotels] = useState([]);
+  // Отфильтрованные данные для отображения
   const [filteredData, setFilteredData] = useState([]);
+  // Индикатор загрузки
   const [loading, setLoading] = useState(true);
+  // Сообщение об ошибке
   const [error, setError] = useState('');
-  
+
+  // Параметры поиска (таблица, поле, поисковый запрос)
   const [searchParams, setSearchParams] = useState({
-    table: 'hotels',
-    field: 'name',
-    query: ''
+    table: 'hotels',   // начальная таблица
+    field: 'name',     // поле поиска
+    query: ''          // поисковая строка
   });
 
-  // Фильтрация данных (useCallback для предотвращения warning)
+  // -------------------
+  // Фильтрация данных
+  // -------------------
+
+  // useCallback предотвращает ненужное пересоздание функции при ререндере
   const filterData = useCallback(() => {
     const { table, field, query } = searchParams;
-    
+
+    // Если поисковый запрос пустой — показываем все элементы
     if (!query.trim()) {
       setFilteredData(table === 'cities' ? cities : hotels);
       return;
@@ -28,13 +45,16 @@ export default function HotelSearch() {
     let filtered = [];
 
     if (table === 'cities') {
+      // Фильтрация городов по выбранному полю
       filtered = cities.filter(city => {
         const value = String(city[field] || '').toLowerCase();
         return value.includes(searchQuery);
       });
     } else {
+      // Фильтрация отелей
       filtered = hotels.filter(hotel => {
         let value = '';
+        // Если поле поиска — город, ищем по city_name
         if (field === 'city') {
           value = String(hotel.city_name || '').toLowerCase();
         } else {
@@ -44,24 +64,36 @@ export default function HotelSearch() {
       });
     }
 
+    // Сохраняем отфильтрованные данные
     setFilteredData(filtered);
   }, [searchParams, cities, hotels]);
 
-  // Загрузка данных при монтировании компонента
+  // -------------------
+  // Загрузка данных при монтировании
+  // -------------------
+
   useEffect(() => {
-    loadAllData();
+    loadAllData(); // вызов асинхронной функции загрузки данных
   }, []);
 
+  // -------------------
   // Фильтрация данных при изменении параметров поиска
+  // -------------------
+
   useEffect(() => {
-    filterData();
+    filterData(); // вызываем фильтрацию каждый раз, когда изменяются searchParams, cities или hotels
   }, [filterData]);
 
+  // -------------------
+  // Асинхронная функция для загрузки данных с сервера
+  // -------------------
+
   const loadAllData = async () => {
-    setLoading(true);
-    setError('');
-    
+    setLoading(true); // включаем индикатор загрузки
+    setError('');     // очищаем ошибки
+
     try {
+      // Одновременные запросы к API для городов и отелей
       const [citiesRes, hotelsRes] = await Promise.all([
         fetch(`${API_URL}/cities`),
         fetch(`${API_URL}/hotels`)
@@ -70,38 +102,50 @@ export default function HotelSearch() {
       const citiesData = await citiesRes.json();
       const hotelsData = await hotelsRes.json();
 
+      // Проверка, что оба запроса успешны
       if (citiesData.success && hotelsData.success) {
-        setCities(citiesData.data || []);
-        setHotels(hotelsData.data || []);
+        setCities(citiesData.data || []);  // сохраняем города
+        setHotels(hotelsData.data || []);  // сохраняем отели
       } else {
-        setError('Failed to load data');
+        setError('Failed to load data');   // ошибка загрузки
       }
     } catch (err) {
-      setError('Error connecting to server: ' + err.message);
+      setError('Error connecting to server: ' + err.message); // ошибка сети или сервера
     } finally {
-      setLoading(false);
+      setLoading(false); // отключаем индикатор загрузки
     }
   };
 
+  // -------------------
+  // Обработчики изменения select/input
+  // -------------------
+
+  // Изменение таблицы (hotels/cities)
   const handleTableChange = (e) => {
     const newTable = e.target.value;
+    // По умолчанию поле поиска — name
     const newField = newTable === 'cities' ? 'name' : 'name';
     setSearchParams({ table: newTable, field: newField, query: '' });
+    // Сразу показываем все элементы выбранной таблицы
     setFilteredData(newTable === 'cities' ? cities : hotels);
   };
 
+  // Изменение поля поиска
   const handleFieldChange = (e) => {
     setSearchParams({ ...searchParams, field: e.target.value });
   };
 
+  // Изменение поисковой строки
   const handleQueryChange = (e) => {
     setSearchParams({ ...searchParams, query: e.target.value });
   };
 
+  // Очистка поисковой строки
   const handleClear = () => {
     setSearchParams({ ...searchParams, query: '' });
   };
 
+  // Получение списка доступных полей для выбранной таблицы
   const getFieldOptions = () => {
     if (searchParams.table === 'cities') {
       return [
